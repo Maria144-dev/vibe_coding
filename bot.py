@@ -13,6 +13,7 @@ from db import (
     mark_done_by_index,
     clear_done,
     list_high_priority_tasks,
+    list_done_tasks,
 )
 from telegram import Update
 from telegram.ext import (
@@ -51,8 +52,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "/add <текст задачи> — добавить задачу\n"
         "/list — показать список задач по приоритетам\n"
         "/delete <номер> — удалить задачу по номеру из списка /list\n"
+        "/done <номер> — отметить задачу как выполненную\n"
+        "/done_list — показать выполненные задачи\n"
+        "/clear — удалить все выполненные задачи\n"
         "/today — список дел на сегодня\n"
-        "/help — помощь"
+        "/help — помощь\n\n"
+        "Ключевые слова приоритета в тексте задачи:\n"
+        "- высокий: ‘срочно’, ‘важно’, ‘немедленно’ (также ‘urgent’, ‘important’)\n"
+        "- средний: ‘скоро’, ‘желательно’\n"
+        "- без ключевых слов — низкий приоритет"
     )
     await update.message.reply_text(msg)
 
@@ -175,6 +183,18 @@ async def clear_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f"Удалено выполненных задач: {deleted}")
 
 
+async def done_list_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    chat_id_int = update.effective_chat.id
+    tasks = list_done_tasks(chat_id_int)
+    if not tasks:
+        await update.message.reply_text("Нет выполненных задач.")
+        return
+    lines = [
+        format_task_row(i + 1, t[1], t[2], t[4]) for i, t in enumerate(tasks)
+    ]
+    await update.message.reply_text("\n".join(lines))
+
+
 async def reminder_job(context: CallbackContext) -> None:
     chat_id = context.job.chat_id
     high_tasks = list_high_priority_tasks(chat_id)
@@ -207,12 +227,16 @@ def main() -> None:
     application.add_handler(CommandHandler("list", list_cmd, block=True))
     application.add_handler(CommandHandler("delete", delete_cmd, block=True))
     application.add_handler(CommandHandler("done", done_cmd, block=True))
+    application.add_handler(CommandHandler("done_list", done_list_cmd, block=True))
     application.add_handler(CommandHandler("clear", clear_cmd, block=True))
     application.add_handler(CommandHandler("today", today_cmd, block=True))
 
     # Periodic reminders for each chat when bot starts receiving updates from it
     # We register a chat-specific repeating job on first message in that chat
     async def ensure_job(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        # If JobQueue is not available (package installed without job-queue extra), skip scheduling
+        if not getattr(context, "job_queue", None):
+            return
         chat_id = update.effective_chat.id
         job_name = f"reminder-{chat_id}"
         if not context.job_queue.get_jobs_by_name(job_name):

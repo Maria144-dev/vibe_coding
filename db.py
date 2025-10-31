@@ -80,7 +80,7 @@ def add_task(user_id: int, text: str, priority: str) -> None:
 
 def _priority_order_clause() -> str:
     # high first, then medium, then low; then by id asc (older first)
-    return "CASE priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, id"
+    return "CASE t.priority WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, t.id"
 
 
 def list_active_tasks(chat_id: int) -> List[Tuple[int, str, str, str, int]]:
@@ -123,7 +123,23 @@ def list_high_priority_tasks(chat_id: int) -> List[Tuple[int, str, str, str, int
             FROM tasks t
             JOIN users u ON u.id = t.user_id
             WHERE u.chat_id = ? AND t.is_done = 0 AND t.priority = 'high'
-            ORDER BY id
+            ORDER BY t.id
+            """,
+            (chat_id,),
+        ).fetchall()
+        return [(int(r[0]), r[1], r[2], r[3], int(r[4])) for r in rows]
+
+
+def list_done_tasks(chat_id: int) -> List[Tuple[int, str, str, str, int]]:
+    # Returns completed tasks for the chat ordered by completion (approx by id desc)
+    with get_conn() as conn:
+        rows = conn.execute(
+            """
+            SELECT t.id, t.text, t.priority, t.date, t.timestamp
+            FROM tasks t
+            JOIN users u ON u.id = t.user_id
+            WHERE u.chat_id = ? AND t.is_done = 1
+            ORDER BY t.id DESC
             """,
             (chat_id,),
         ).fetchall()
