@@ -80,7 +80,7 @@ README.md — инструкция по запуску бота (как созд
 
 ![img](./img/img3.png)
 
-Видео https://drive.google.com/file/d/1wMLwqvemWaHGLnNtyoHU_xutJmwrmejr/view?usp=sharing
+Видео https://drive.google.com/file/d/1fboRDU_-e40qXo-BLfq04wrlEl8wyY-O/view?usp=sharing 
 
 ### Лабораторная работа 2
 Для улучшения бота я выбрала интеграцию с простой базой данных. К моменту реализации лабораторной 1 бот записывает все таски в tasks.json. Напишем промпт для внедрения БД:
